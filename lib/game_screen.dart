@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  GameScreen({super.key});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -10,7 +10,6 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   final TextEditingController _controller = TextEditingController();
-  // 'late'를 제거하고 nullable 타입으로 변경
   GameSession? gameSession;
 
   @override
@@ -26,7 +25,6 @@ class _GameScreenState extends State<GameScreen> {
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            // 안전하게 이전 화면으로 이동
             Navigator.of(context).pop();
           }
         });
@@ -35,7 +33,6 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _submitDescription() {
-    // gameSession이 null이면 아무 동작도 하지 않음
     if (gameSession == null) return;
     
     if (_controller.text.trim().isEmpty) {
@@ -50,23 +47,8 @@ class _GameScreenState extends State<GameScreen> {
           gameSession!.players[gameSession!.currentPlayerIndex];
       gameSession!.descriptions[currentPlayer] = _controller.text.trim();
       
-      // 다음 플레이어로 턴을 넘김
       if (gameSession!.currentPlayerIndex < gameSession!.players.length - 1) {
         gameSession!.currentPlayerIndex++;
-      } else {
-        // 모든 플레이어가 설명을 마쳤음을 알림
-        showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-                  title: const Text('설명 완료'),
-                  content: const Text('모든 플레이어가 설명을 마쳤습니다. 투표를 시작하세요.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('확인'),
-                    )
-                  ],
-                ));
       }
       _controller.clear();
     });
@@ -80,15 +62,14 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // gameSession이 null일 경우 로딩 인디케이터를 보여줌
     if (gameSession == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
     
-    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
     final allDescriptionsDone = gameSession!.descriptions.length == gameSession!.players.length;
+    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
 
     return Scaffold(
       appBar: AppBar(title: Text('주제: ${gameSession!.topic}')),
@@ -139,7 +120,8 @@ class _GameScreenState extends State<GameScreen> {
             else
               ElevatedButton(
                 onPressed: () {
-                  // TODO: 투표 기능 구현
+                  // 투표 화면으로 게임 상태를 전달하며 이동합니다.
+                  Navigator.pushNamed(context, '/voting', arguments: gameSession);
                 },
                 child: const Text('투표 시작하기'),
               )

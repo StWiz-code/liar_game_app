@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'game_screen.dart';
 import 'player_setup_screen.dart';
 import 'role_check_screen.dart';
+import 'voting_screen.dart';   // VotingScreen 임포트
+import 'results_screen.dart';  // ResultsScreen 임포트
 
 void main() {
   runApp(const LiarGameApp());
@@ -16,12 +18,13 @@ class LiarGameApp extends StatelessWidget {
       title: '라이어 게임',
       initialRoute: '/',
       routes: {
-        // StatelessWidget은 const로 선언할 수 있습니다.
         '/': (context) => const HomeScreen(),
-        // 아래 StatefulWidget들은 const로 선언할 수 없으므로 const를 제거했습니다.
         '/player_setup': (context) => PlayerSetupScreen(),
         '/role_check': (context) => RoleCheckScreen(),
         '/game': (context) => GameScreen(),
+        // 아래 두 경로를 추가합니다.
+        '/voting': (context) => VotingScreen(),
+        '/results': (context) => ResultsScreen(),
       },
     );
   }

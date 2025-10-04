@@ -1,61 +1,148 @@
 import 'package:flutter/material.dart';
+import 'game_session.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({Key? key}) : super(key: key);
+  const GameScreen({super.key});
 
   @override
-  _GameScreenState createState() => _GameScreenState();
+  State<GameScreen> createState() => _GameScreenState();
 }
 
 class _GameScreenState extends State<GameScreen> {
-  final _controller = TextEditingController(); // 입력란 컨트롤러
-  String _answer = ''; // 입력된 답변 저장
-  final List<String> _topics = ['동물', '음식', '직업']; // 주제 목록
-  String _currentTopic = '동물'; // 현재 주제
+  final TextEditingController _controller = TextEditingController();
+  // 'late'를 제거하고 nullable 타입으로 변경
+  GameSession? gameSession;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    if (gameSession == null) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args != null && args is GameSession) {
+        setState(() {
+          gameSession = args;
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            // 안전하게 이전 화면으로 이동
+            Navigator.of(context).pop();
+          }
+        });
+      }
+    }
+  }
+
+  void _submitDescription() {
+    // gameSession이 null이면 아무 동작도 하지 않음
+    if (gameSession == null) return;
+    
+    if (_controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('설명을 입력해주세요!')),
+      );
+      return;
+    }
+
+    setState(() {
+      final currentPlayer =
+          gameSession!.players[gameSession!.currentPlayerIndex];
+      gameSession!.descriptions[currentPlayer] = _controller.text.trim();
+      
+      // 다음 플레이어로 턴을 넘김
+      if (gameSession!.currentPlayerIndex < gameSession!.players.length - 1) {
+        gameSession!.currentPlayerIndex++;
+      } else {
+        // 모든 플레이어가 설명을 마쳤음을 알림
+        showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+                  title: const Text('설명 완료'),
+                  content: const Text('모든 플레이어가 설명을 마쳤습니다. 투표를 시작하세요.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('확인'),
+                    )
+                  ],
+                ));
+      }
+      _controller.clear();
+    });
+  }
 
   @override
   void dispose() {
-    _controller.dispose(); // 메모리 정리
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // gameSession이 null일 경우 로딩 인디케이터를 보여줌
+    if (gameSession == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
+    final allDescriptionsDone = gameSession!.descriptions.length == gameSession!.players.length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('게임 화면'), backgroundColor: Colors.green),
+      appBar: AppBar(title: Text('주제: ${gameSession!.topic}')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              '주제: $_currentTopic',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: '답변 입력',
+            Expanded(
+              child: ListView.builder(
+                itemCount: gameSession!.descriptions.length,
+                itemBuilder: (context, index) {
+                  final player = gameSession!.descriptions.keys.elementAt(index);
+                  final description = gameSession!.descriptions[player];
+                  return Card(
+                    child: ListTile(
+                      title: Text(player),
+                      subtitle: Text(description!),
+                    ),
+                  );
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _answer = value; // 입력값 저장
-                });
-              },
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              child: const Text('답변 제출'),
-              onPressed: () {
-                if (_answer.isNotEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('제출된 답변: $_answer')));
-                }
-              },
-            ),
+            const Divider(height: 32),
+            if (!allDescriptionsDone)
+              Column(
+                children: [
+                  Text(
+                    '$currentPlayer 님의 설명 차례',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: '제시어 설명 입력',
+                    ),
+                    onSubmitted: (_) => _submitDescription(),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _submitDescription,
+                    child: const Text('설명 제출'),
+                  ),
+                ],
+              )
+            else
+              ElevatedButton(
+                onPressed: () {
+                  // TODO: 투표 기능 구현
+                },
+                child: const Text('투표 시작하기'),
+              )
           ],
         ),
       ),

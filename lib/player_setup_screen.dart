@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 
 class PlayerSetupScreen extends StatefulWidget {
-  // const 생성자가 아니므로 super.key를 전달하는 방식으로 변경합니다.
-  PlayerSetupScreen({super.key});
+  const PlayerSetupScreen({super.key}); // 'const' 추가
 
   @override
-  _PlayerSetupScreenState createState() => _PlayerSetupScreenState();
+  // 반환 타입 '_PlayerSetupScreenState' 제거
+  createState() => _PlayerSetupScreenState();
 }
 
 class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
@@ -51,7 +51,6 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('플레이어 설정')),
-      // body 부분을 SafeArea 위젯으로 감싸줍니다.
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

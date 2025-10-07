@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 
 class RoleCheckScreen extends StatefulWidget {
-  // const 생성자가 아니므로 super.key를 전달하는 방식으로 변경합니다.
-  RoleCheckScreen({super.key});
+  const RoleCheckScreen({super.key}); // 'const' 추가
 
   @override
   State<RoleCheckScreen> createState() => _RoleCheckScreenState();
@@ -90,8 +89,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen> {
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                               const SizedBox(height: 16),
-                              // ## 이 부분이 수정되었습니다! ##
-                              // 라이어일 경우 topic 대신 liarWord를 보여줍니다.
                               Text(
                                 isLiar
                                     ? gameSession!.liarWord

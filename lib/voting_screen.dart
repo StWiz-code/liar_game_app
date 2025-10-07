@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 
 class VotingScreen extends StatefulWidget {
-  VotingScreen({super.key});
+  const VotingScreen({super.key}); // 'const' 추가
 
   @override
   State<VotingScreen> createState() => _VotingScreenState();
@@ -54,8 +54,8 @@ class _VotingScreenState extends State<VotingScreen> {
     final currentVoter = gameSession!.players[currentVoterIndex];
 
     return Scaffold(
-      appBar: AppBar(title: Text('${currentVoter}님의 투표')),
-      // body 부분을 SafeArea 위젯으로 감싸줍니다.
+      // 불필요한 중괄호 제거
+      appBar: AppBar(title: Text('$currentVoter님의 투표')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

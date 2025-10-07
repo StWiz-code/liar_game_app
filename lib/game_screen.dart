@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 
 class GameScreen extends StatefulWidget {
-  GameScreen({super.key});
+  const GameScreen({super.key}); // 'const' 추가
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -71,8 +71,8 @@ class _GameScreenState extends State<GameScreen> {
     final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
 
     return Scaffold(
-      appBar: AppBar(title: Text('주제: ${gameSession!.topic}')),
-      // body 부분을 SafeArea 위젯으로 감싸줍니다.
+      // 불필요한 중괄호 제거
+      appBar: AppBar(title: Text('주제: $gameSession!.topic')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -123,7 +123,6 @@ class _GameScreenState extends State<GameScreen> {
               else
                 ElevatedButton(
                   onPressed: () {
-                    // 투표 화면으로 게임 상태를 전달하며 이동합니다.
                     Navigator.pushNamed(
                       context,
                       '/voting',

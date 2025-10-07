@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'game_screen.dart';
 import 'player_setup_screen.dart';
 import 'role_check_screen.dart';
-import 'voting_screen.dart'; // VotingScreen 임포트
-import 'results_screen.dart'; // ResultsScreen 임포트
+import 'voting_screen.dart';
+import 'results_screen.dart';
 
 void main() {
   runApp(const LiarGameApp());
 }
 
 class LiarGameApp extends StatelessWidget {
-  const LiarGameApp({super.key});
+  const LiarGameApp({super.key}); // 'const' 추가
 
   @override
   Widget build(BuildContext context) {
@@ -19,24 +19,23 @@ class LiarGameApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        '/player_setup': (context) => PlayerSetupScreen(),
-        '/role_check': (context) => RoleCheckScreen(),
-        '/game': (context) => GameScreen(),
-        '/voting': (context) => VotingScreen(),
-        '/results': (context) => ResultsScreen(),
+        '/player_setup': (context) => const PlayerSetupScreen(),
+        '/role_check': (context) => const RoleCheckScreen(),
+        '/game': (context) => const GameScreen(),
+        '/voting': (context) => const VotingScreen(),
+        '/results': (context) => const ResultsScreen(),
       },
     );
   }
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key}); // 'const' 추가
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('라이어 게임')),
-      // body 부분을 SafeArea 위젯으로 감싸줍니다.
       body: SafeArea(
         child: Center(
           child: ElevatedButton(

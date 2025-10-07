@@ -27,12 +27,20 @@ class _VotingScreenState extends State<VotingScreen> {
 
   void _castVote(String votedFor) {
     setState(() {
-      gameSession!.votes.update(votedFor, (value) => value + 1, ifAbsent: () => 1);
+      gameSession!.votes.update(
+        votedFor,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
 
       if (currentVoterIndex < gameSession!.players.length - 1) {
         currentVoterIndex++;
       } else {
-        Navigator.pushReplacementNamed(context, '/results', arguments: gameSession);
+        Navigator.pushReplacementNamed(
+          context,
+          '/results',
+          arguments: gameSession,
+        );
       }
     });
   }
@@ -47,37 +55,43 @@ class _VotingScreenState extends State<VotingScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text('${currentVoter}님의 투표')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text('라이어라고 생각하는 사람을 선택하세요.', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
-                children: gameSession!.descriptions.entries.map((entry) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(entry.key),
-                      subtitle: Text(entry.value),
-                    ),
+      // body 부분을 SafeArea 위젯으로 감싸줍니다.
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                '라이어라고 생각하는 사람을 선택하세요.',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView(
+                  children: gameSession!.descriptions.entries.map((entry) {
+                    return Card(
+                      child: ListTile(
+                        title: Text(entry.key),
+                        subtitle: Text(entry.value),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 10,
+                alignment: WrapAlignment.center,
+                children: gameSession!.players.map((player) {
+                  final isSelf = player == currentVoter;
+                  return ElevatedButton(
+                    onPressed: isSelf ? null : () => _castVote(player),
+                    child: Text(player),
                   );
                 }).toList(),
               ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 10,
-              alignment: WrapAlignment.center,
-              children: gameSession!.players.map((player) {
-                final isSelf = player == currentVoter;
-                return ElevatedButton(
-                  onPressed: isSelf ? null : () => _castVote(player),
-                  child: Text(player),
-                );
-              }).toList(),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

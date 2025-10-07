@@ -44,61 +44,57 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
     }
 
     final gameSession = GameSession(players: _players);
-    Navigator.pushNamed(
-      context,
-      '/role_check',
-      arguments: gameSession,
-    );
+    Navigator.pushNamed(context, '/role_check', arguments: gameSession);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('플레이어 설정')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: '플레이어 이름',
-                border: const OutlineInputBorder(),
-                errorText: _errorMessage.isEmpty ? null : _errorMessage,
+      // body 부분을 SafeArea 위젯으로 감싸줍니다.
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: _controller,
+                decoration: InputDecoration(
+                  labelText: '플레이어 이름',
+                  border: const OutlineInputBorder(),
+                  errorText: _errorMessage.isEmpty ? null : _errorMessage,
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _addPlayer(),
               ),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _addPlayer(),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _addPlayer,
-              child: const Text('플레이어 추가'),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _players.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(_players[index]),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () {
-                        setState(() {
-                          _players.removeAt(index);
-                          _errorMessage = '';
-                        });
-                      },
-                    ),
-                  );
-                },
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _addPlayer,
+                child: const Text('플레이어 추가'),
               ),
-            ),
-            ElevatedButton(
-              onPressed: _startGame,
-              child: const Text('게임 시작'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _players.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(_players[index]),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          setState(() {
+                            _players.removeAt(index);
+                            _errorMessage = '';
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              ElevatedButton(onPressed: _startGame, child: const Text('게임 시작')),
+            ],
+          ),
         ),
       ),
     );

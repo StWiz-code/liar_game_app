@@ -55,80 +55,87 @@ class _RoleCheckScreenState extends State<RoleCheckScreen> {
   @override
   Widget build(BuildContext context) {
     if (gameSession == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final currentPlayer = gameSession!.players[currentPlayerIndex];
     final isLiar = (currentPlayer == gameSession!.liar);
-    final isLastPlayer = (currentPlayerIndex == gameSession!.players.length - 1);
+    final isLastPlayer =
+        (currentPlayerIndex == gameSession!.players.length - 1);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('역할 확인'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '$currentPlayer 님의 차례입니다',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 32),
-              isRoleVisible
-                  ? Card(
-                      elevation: 4,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(40.0),
-                        child: Column(
-                          children: [
-                            Text(
-                              isLiar ? '당신은 라이어입니다' : '제시어',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              isLiar ? gameSession!.topic : gameSession!.word,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : GestureDetector(
-                      onTap: _showRole,
-                      child: Card(
+      appBar: AppBar(title: const Text('역할 확인')),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$currentPlayer 님의 차례입니다',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 32),
+                isRoleVisible
+                    ? Card(
                         elevation: 4,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(40.0),
-                          child: Center(
-                            child: Text(
-                              '탭하여 역할 확인하기',
-                              style: Theme.of(context).textTheme.headlineSmall,
+                          child: Column(
+                            children: [
+                              Text(
+                                isLiar ? '당신은 라이어입니다' : '제시어',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 16),
+                              // ## 이 부분이 수정되었습니다! ##
+                              // 라이어일 경우 topic 대신 liarWord를 보여줍니다.
+                              Text(
+                                isLiar
+                                    ? gameSession!.liarWord
+                                    : gameSession!.word,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: _showRole,
+                        child: Card(
+                          elevation: 4,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(40.0),
+                            child: Center(
+                              child: Text(
+                                '탭하여 역할 확인하기',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineSmall,
+                              ),
                             ),
                           ),
                         ),
                       ),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: _nextPlayer,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 16,
                     ),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _nextPlayer,
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  ),
+                  child: Text(isLastPlayer ? '게임 시작' : '확인 완료 (다음)'),
                 ),
-                child: Text(isLastPlayer ? '게임 시작' : '확인 완료 (다음)'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

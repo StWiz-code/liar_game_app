@@ -18,6 +18,26 @@ class _GameScreenState extends State<GameScreen> {
   String? _liarHintText;
   bool _isLiarHintLoading = false;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (gameSession == null) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+
+      if (args != null && args is GameSession) {
+        setState(() {
+          gameSession = args;
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      }
+    }
+  }
+
   // ## 제시어 설명 힌트 함수 추가 ##
   void _fetchWordHint() async {
     if (gameSession == null) return;

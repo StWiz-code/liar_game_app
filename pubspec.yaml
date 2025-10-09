@@ -34,7 +34,10 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  http: ^1.2.1 
+  http: ^1.2.1
+  google_fonts: ^6.2.1    # Pretendard 등 다양한 폰트를 쉽게 사용하기 위한 패키지
+  fl_chart: ^0.68.0       # 투표 결과를 보여줄 막대그래프 패키지
+  confetti: ^0.7.0        # 승리 축하 효과를 위한 패키지
 
 dev_dependencies:
   flutter_test:
@@ -88,3 +91,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  
+  # Pretendard 폰트를 프로젝트에 추가합니다.
+  # 먼저 assets/fonts 폴더를 만들고 그 안에 폰트 파일을 넣어야 합니다.
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700

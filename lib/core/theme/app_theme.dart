@@ -9,7 +9,7 @@ class AppTheme {
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.accent,
-      surface: AppColors.secondary, // 1. 'background' 대신 'surface'를 사용합니다.
+      surface: AppColors.secondary,
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
@@ -29,13 +29,13 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.primary, // 새로운 파란색으로 자동 적용
         foregroundColor: Colors.white,
         textStyle: AppTextStyles.button,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         elevation: 5,
-        shadowColor: AppColors.primary.withAlpha(51),
+        shadowColor: AppColors.primary.withAlpha(51), // 새로운 파란색 그림자로 자동 적용
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -47,7 +47,6 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
       ),
     ),
-    // 2. 'CardTheme'을 올바른 이름인 'CardThemeData'로 수정합니다.
     cardTheme: CardThemeData(
       elevation: 2,
       color: AppColors.cardBackground,

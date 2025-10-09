@@ -44,7 +44,6 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
     }
 
     final gameSession = GameSession(players: _players);
-    print('✅ RoleCheckScreen으로 데이터 전달 시도: $gameSession');
     Navigator.pushNamed(context, '/role_check', arguments: gameSession);
   }
 

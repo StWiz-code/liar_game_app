@@ -26,20 +26,16 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     );
   }
 
-  // 화면에 필요한 데이터가 변경될 때 호출되는 부분입니다.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // gameSession 데이터는 여기서 한 번만 설정합니다.
     if (gameSession == null) {
       final args = ModalRoute.of(context)?.settings.arguments;
-      print('🟠 RoleCheckScreen에서 데이터 수신 시도: $args'); // 디버깅용 print
       if (args != null && args is GameSession) {
         setState(() {
           gameSession = args;
         });
       } else {
-        // 데이터가 없으면 이전 화면으로 돌아갑니다.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             Navigator.of(context).pop();
@@ -50,9 +46,7 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
   }
 
   void _flipCard() {
-    // 카드가 이미 뒤집혔거나 애니메이션이 진행 중이면 아무것도 하지 않습니다.
     if (_isCardFlipped || _animationController.isAnimating) return;
-
     _animationController.forward();
     setState(() {
       _isCardFlipped = true;
@@ -61,17 +55,14 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
 
   void _nextPlayer() {
     if (gameSession == null) return;
-
     final isLastPlayer = currentPlayerIndex == gameSession!.players.length - 1;
-
     if (!isLastPlayer) {
       setState(() {
         currentPlayerIndex++;
-        _isCardFlipped = false; // 다음 플레이어를 위해 카드 상태 초기화
-        _animationController.reset(); // 애니메이션 컨트롤러 초기화
+        _isCardFlipped = false;
+        _animationController.reset();
       });
     } else {
-      // 마지막 플레이어라면 게임 화면으로 이동
       Navigator.pushReplacementNamed(context, '/game', arguments: gameSession);
     }
   }
@@ -84,7 +75,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
 
   @override
   Widget build(BuildContext context) {
-    // 데이터가 아직 준비되지 않았다면 로딩 화면을 보여줍니다.
     if (gameSession == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -121,18 +111,15 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
                   builder: (context, child) {
                     final angle = _animationController.value * pi;
                     final isFrontSide = _animationController.value < 0.5;
-                    // 3D 회전 효과
                     final transform = Matrix4.identity()
                       ..setEntry(3, 2, 0.001)
                       ..rotateY(angle);
-
                     return Transform(
                       transform: transform,
                       alignment: Alignment.center,
                       child: isFrontSide
                           ? _buildCardFront()
                           : Transform(
-                              // 뒷면은 반대로 뒤집어서 보여줌
                               transform: Matrix4.identity()..rotateY(pi),
                               alignment: Alignment.center,
                               child: _buildCardBack(isLiar, gameSession!),
@@ -143,7 +130,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
               ),
               const Spacer(),
               ElevatedButton(
-                // 카드를 뒤집어야만 버튼이 활성화됩니다.
                 onPressed: _isCardFlipped ? _nextPlayer : null,
                 child: Text(isLastPlayer ? '모두 확인! 게임 시작' : '다음 플레이어'),
               ),
@@ -154,15 +140,15 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     );
   }
 
-  // 카드 앞면 UI
   Widget _buildCardFront() {
     return Card(
       child: Container(
         height: 250,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
+          // 파란색 계열 그라데이션으로 수정
           gradient: LinearGradient(
-            colors: [Theme.of(context).primaryColor, Colors.purple.shade300],
+            colors: [Theme.of(context).primaryColor, Colors.blue.shade300],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -178,7 +164,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     );
   }
 
-  // 카드 뒷면 UI
   Widget _buildCardBack(bool isLiar, GameSession session) {
     final theme = Theme.of(context);
     return Card(
@@ -200,12 +185,13 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              isLiar ? '주제만 보고 정체를 숨기세요!' : '제시어를 확인하세요!',
+              isLiar ? '정체를 숨기고 시민들을 속이세요!' : '제시어를 확인하세요!',
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 32),
             Text(
-              isLiar ? session.topic : session.word,
+              // ## 버그 수정: 라이어일 경우 session.topic 대신 session.liarWord를 보여줍니다.
+              isLiar ? session.liarWord : session.word,
               style: theme.textTheme.headlineLarge?.copyWith(
                 color: theme.primaryColor,
               ),

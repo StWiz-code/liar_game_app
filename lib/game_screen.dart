@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game_session.dart';
-import 'gpt_service.dart'; // GPT 서비스를 사용하기 위해 임포트
+import 'gpt_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_text_styles.dart';
 
@@ -18,7 +18,8 @@ class _GameScreenState extends State<GameScreen> {
 
   bool _allDescriptionsSubmitted = false;
   bool _isLiarHintLoading = false;
-  bool _isWordHintLoading = false; // '설명 힌트'를 위한 로딩 변수 추가
+  bool _isWordHintLoading = false;
+  bool _isAITurnProcessing = false;
 
   @override
   void didChangeDependencies() {
@@ -26,9 +27,10 @@ class _GameScreenState extends State<GameScreen> {
     if (gameSession == null) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null && args is GameSession) {
-        setState(() {
-          gameSession = args;
-        });
+        gameSession = args;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _checkAndProcessAITurn(),
+        );
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) Navigator.of(context).pop();
@@ -37,28 +39,62 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  void _submitDescription() {
-    final description = _descriptionController.text.trim();
-    if (description.isEmpty) return;
+  Future<void> _checkAndProcessAITurn() async {
+    if (gameSession == null || _allDescriptionsSubmitted || !mounted) return;
+
+    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
+    if (currentPlayer.startsWith('AI')) {
+      setState(() => _isAITurnProcessing = true);
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+
+      // 이전에 AI가 했던 설명들만 필터링해서 리스트 생성
+      final previousAIDescriptions = gameSession!.descriptions.entries
+          .where((entry) => entry.key.startsWith('AI'))
+          .map((entry) => entry.value)
+          .toList();
+
+      final isLiar = currentPlayer == gameSession!.liar;
+      final aiDescription = await _gptService.generateAIDescription(
+        playerName: currentPlayer,
+        topic: gameSession!.topic,
+        word: isLiar ? gameSession!.liarWord : gameSession!.word,
+        isLiar: isLiar,
+        previousDescriptions: previousAIDescriptions, // 필터링된 리스트를 전달
+      );
+
+      if (mounted) {
+        _submitDescription(aiDescription);
+      }
+    } else {
+      setState(() => _isAITurnProcessing = false);
+    }
+  }
+
+  void _submitDescription(String description) {
+    if (description.trim().isEmpty) return;
 
     final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
     setState(() {
-      gameSession!.descriptions[currentPlayer] = description;
+      gameSession!.descriptions[currentPlayer] = description.trim();
       _descriptionController.clear();
       gameSession!.currentPlayerIndex++;
+
       if (gameSession!.descriptions.length >= gameSession!.players.length) {
         _allDescriptionsSubmitted = true;
+      } else {
+        _checkAndProcessAITurn();
       }
     });
   }
 
-  // ## 'AI 라이어 힌트' 기능 (설명이 모두 끝난 후) ##
+  // --- 힌트 및 투표 시작 함수 (이전과 동일) ---
   Future<void> _showLiarHint() async {
     setState(() => _isLiarHintLoading = true);
     final hint = await _gptService.getLiarHint(gameSession!);
     if (!mounted) return;
     setState(() => _isLiarHintLoading = false);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -74,21 +110,17 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // ## 'AI 설명 힌트' 기능 (설명 입력 단계) ##
   Future<void> _showWordHint() async {
     setState(() => _isWordHintLoading = true);
     final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
     final isLiar = currentPlayer == gameSession!.liar;
-
     final hint = await _gptService.getWordHint(
       topic: gameSession!.topic,
       word: isLiar ? gameSession!.liarWord : gameSession!.word,
       isLiar: isLiar,
     );
-
     if (!mounted) return;
     setState(() => _isWordHintLoading = false);
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -122,57 +154,79 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // ## 설명 입력 단계 UI ##
   Widget _buildDescriptionInputUI() {
+    if (gameSession!.currentPlayerIndex >= gameSession!.players.length) {
+      return const Center(child: CircularProgressIndicator());
+    }
     final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '$currentPlayer 님의 차례',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '제시어를 한 문장으로 설명해주세요.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 32),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                hintText: '예) 하늘을 나는 탈 것입니다.',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                  borderSide: BorderSide.none,
+        child: _isAITurnProcessing
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 20),
+                    Text(
+                      '$currentPlayer 님이 생각 중입니다...',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ],
                 ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '$currentPlayer 님의 차례',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '제시어를 한 문장으로 설명해주세요.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 32),
+                  TextField(
+                    controller: _descriptionController,
+                    decoration: InputDecoration(
+                      hintText: '예) 하늘을 나는 탈 것입니다.',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    textAlign: TextAlign.center,
+                    onSubmitted: (_) =>
+                        _submitDescription(_descriptionController.text),
+                  ),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.lightbulb_outline),
+                    label: Text(
+                      _isWordHintLoading ? 'AI 생각 중...' : 'AI 설명 힌트 보기',
+                    ),
+                    onPressed: _isWordHintLoading ? null : _showWordHint,
+                  ),
+                  const Spacer(),
+                  GradientButton(
+                    onPressed: () =>
+                        _submitDescription(_descriptionController.text),
+                    text: '설명 제출',
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
-              onSubmitted: (_) => _submitDescription(),
-            ),
-            const SizedBox(height: 20),
-            // 'AI 설명 힌트' 버튼 추가
-            OutlinedButton.icon(
-              icon: const Icon(Icons.lightbulb_outline),
-              label: Text(_isWordHintLoading ? 'AI 생각 중...' : 'AI 설명 힌트 보기'),
-              onPressed: _isWordHintLoading ? null : _showWordHint,
-            ),
-            const Spacer(),
-            GradientButton(onPressed: _submitDescription, text: '설명 제출'),
-          ],
-        ),
       ),
     );
   }
 
-  // ## 투표 전 단계 UI ##
   Widget _buildPreVotingUI() {
     final smallButtonTextStyle = AppTextStyles.button.copyWith(fontSize: 15);
     return SafeArea(

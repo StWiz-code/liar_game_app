@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
-// 1. Unused screen imports are removed as routing is now handled by AppRouter.
+import 'core/theme/app_colors.dart'; // 색상 사용을 위해 임포트
 import 'core/router.dart';
 
 void main() {
@@ -15,7 +15,6 @@ class LiarGameApp extends StatelessWidget {
     return MaterialApp(
       title: '라이어 게임',
       theme: AppTheme.lightTheme,
-      debugShowCheckedModeBanner: false,
       initialRoute: '/',
       onGenerateRoute: AppRouter.generateRoute,
     );
@@ -33,15 +32,31 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('라이어 게임', style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: 40),
+            const SizedBox(height: 50),
+            // '혼자하기' 버튼
             SizedBox(
               width: 250,
-              // 2. 'child' argument is moved to the end of the argument list.
+              child: GradientButton(
+                onPressed: () {
+                  // '/single_player_setup' 경로는 2단계에서 만듭니다.
+                  Navigator.pushNamed(context, '/single_player_setup');
+                },
+                text: '🤖 혼자하기 (AI 대전)',
+              ),
+            ),
+            const SizedBox(height: 20),
+            // '함께하기' 버튼
+            SizedBox(
+              width: 250,
               child: GradientButton(
                 onPressed: () {
                   Navigator.pushNamed(context, '/player_setup');
                 },
-                text: '게임 시작',
+                text: '👥 함께하기',
+                // 핑크 그라데이션으로 차별화
+                gradient: const LinearGradient(
+                  colors: [AppColors.accentPink, AppColors.accentLightPink],
+                ),
               ),
             ),
           ],

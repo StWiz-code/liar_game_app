@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../single_player_setup_screen.dart'; // 새 화면 임포트
 import '../game_screen.dart';
 import '../player_setup_screen.dart';
 import '../role_check_screen.dart';
@@ -13,6 +14,8 @@ class AppRouter {
         return _fadeRoute(const HomeScreen(), settings);
       case '/player_setup':
         return _fadeRoute(const PlayerSetupScreen(), settings);
+      case '/single_player_setup': // 새 경로 추가
+        return _fadeRoute(const SinglePlayerSetupScreen(), settings);
       case '/role_check':
         return _fadeRoute(const RoleCheckScreen(), settings);
       case '/game':

@@ -18,7 +18,11 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
   late AnimationController _animationController;
   bool _isCardFlipped = false;
   GameSession? gameSession;
-  int currentPlayerIndex = 0;
+
+  // 모드 구분을 위한 변수
+  bool _isSingleOrDuoMode = false;
+  List<String> _humanPlayers = [];
+  int _currentPlayerIndex = 0; // 현재 순서의 인덱스
 
   @override
   void initState() {
@@ -37,6 +41,14 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
       if (args != null && args is GameSession) {
         setState(() {
           gameSession = args;
+          _isSingleOrDuoMode = gameSession!.players.any(
+            (p) => p.startsWith('AI'),
+          );
+          if (_isSingleOrDuoMode) {
+            _humanPlayers = gameSession!.players
+                .where((p) => !p.startsWith('AI'))
+                .toList();
+          }
         });
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -56,18 +68,25 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
 
   void _nextPlayer() {
     if (gameSession == null) return;
-    final isLastPlayer = currentPlayerIndex == gameSession!.players.length - 1;
+
+    final playersToCheck = _isSingleOrDuoMode
+        ? _humanPlayers
+        : gameSession!.players;
+    final isLastPlayer = _currentPlayerIndex == playersToCheck.length - 1;
+
     if (!isLastPlayer) {
       setState(() {
-        currentPlayerIndex++;
+        _currentPlayerIndex++;
         _isCardFlipped = false;
         _animationController.reset();
       });
     } else {
-      // ## 이 부분이 유일한 원인입니다. ##
-      // 마지막 플레이어 확인 후 반드시 '/game' 경로로 이동해야 합니다.
-      Navigator.pushReplacementNamed(context, '/game', arguments: gameSession);
+      _startGame();
     }
+  }
+
+  void _startGame() {
+    Navigator.pushReplacementNamed(context, '/game', arguments: gameSession);
   }
 
   @override
@@ -78,13 +97,15 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (gameSession == null) {
+    if (gameSession == null || (_isSingleOrDuoMode && _humanPlayers.isEmpty)) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final currentPlayer = gameSession!.players[currentPlayerIndex];
-    final isLiar = currentPlayer == gameSession!.liar;
-    final isLastPlayer = currentPlayerIndex == gameSession!.players.length - 1;
+    final playersToCheck = _isSingleOrDuoMode
+        ? _humanPlayers
+        : gameSession!.players;
+    final currentPlayerName = playersToCheck[_currentPlayerIndex];
+    final isLiar = currentPlayerName == gameSession!.liar;
 
     return Scaffold(
       body: Container(
@@ -103,7 +124,7 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  '$currentPlayer 님의 차례',
+                  '$currentPlayerName 님의 차례',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
@@ -139,15 +160,23 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
                   ),
                 ),
                 const Spacer(),
-                GradientButton(
-                  onPressed: _isCardFlipped ? _nextPlayer : null,
-                  text: isLastPlayer ? '모두 확인! 게임 시작' : '다음 플레이어',
-                ),
+                _buildBottomButton(),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBottomButton() {
+    final playersToCheck = _isSingleOrDuoMode
+        ? _humanPlayers
+        : gameSession!.players;
+    final isLastPlayer = _currentPlayerIndex == playersToCheck.length - 1;
+    return GradientButton(
+      onPressed: _isCardFlipped ? _nextPlayer : null,
+      text: isLastPlayer ? '게임 시작하기' : '다음 플레이어 확인',
     );
   }
 

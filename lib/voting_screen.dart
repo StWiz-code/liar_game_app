@@ -1,6 +1,7 @@
-import 'dart:async'; // Timer를 사용하기 위해 임포트합니다.
 import 'package:flutter/material.dart';
 import 'game_session.dart';
+import 'gpt_service.dart'; // GPT 서비스 임포트
+import 'core/theme/app_theme.dart'; // GradientButton 사용
 
 class VotingScreen extends StatefulWidget {
   const VotingScreen({super.key});
@@ -11,18 +12,11 @@ class VotingScreen extends StatefulWidget {
 
 class _VotingScreenState extends State<VotingScreen> {
   GameSession? gameSession;
-  int currentVoterIndex = 0;
+  final GptService _gptService = GptService();
 
-  // --- 타이머 관련 변수 추가 ---
-  Timer? _timer;
-  int _secondsLeft = 15; // 15초로 제한 시간 설정
-
-  @override
-  void initState() {
-    super.initState();
-    // 위젯이 생성될 때 한 번만 실행됩니다.
-    // didChangeDependencies 이후에 gameSession이 설정되므로 타이머 시작은 그곳으로 이동합니다.
-  }
+  int _currentVoterIndex = 0;
+  bool _isAIVoting = false;
+  String _statusMessage = '';
 
   @override
   void didChangeDependencies() {
@@ -30,63 +24,64 @@ class _VotingScreenState extends State<VotingScreen> {
     if (gameSession == null) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null && args is GameSession) {
-        setState(() {
-          gameSession = args;
-        });
-        // gameSession이 설정된 직후 타이머를 시작합니다.
-        _startTimer();
+        gameSession = args;
+        // 위젯 빌드 후 첫 투표자 처리 시작
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _processNextVoter(),
+        );
       }
     }
   }
 
-  @override
-  void dispose() {
-    // 화면이 사라질 때 타이머를 반드시 취소하여 메모리 누수를 방지합니다.
-    _timer?.cancel();
-    super.dispose();
+  /// 다음 투표자를 처리하는 메인 로직
+  Future<void> _processNextVoter() async {
+    if (!mounted || gameSession == null) return;
+
+    // 모든 투표가 끝났으면 결과 화면으로 이동
+    if (_currentVoterIndex >= gameSession!.players.length) {
+      Navigator.pushReplacementNamed(
+        context,
+        '/results',
+        arguments: gameSession,
+      );
+      return;
+    }
+
+    final currentVoter = gameSession!.players[_currentVoterIndex];
+
+    if (currentVoter.startsWith('AI')) {
+      // AI 턴일 경우
+      setState(() {
+        _isAIVoting = true;
+        _statusMessage = '$currentVoter 님이 투표 중입니다...';
+      });
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+
+      final votedFor = await _gptService.castAIVote(gameSession!, currentVoter);
+      _recordVote(votedFor);
+    } else {
+      // 사람 턴일 경우
+      setState(() {
+        _isAIVoting = false;
+        _statusMessage = '$currentVoter 님, 라이어라고 생각하는 사람에게 투표하세요.';
+      });
+    }
   }
 
-  void _startTimer() {
-    _secondsLeft = 15; // 타이머 초기화
-    _timer?.cancel(); // 기존 타이머가 있다면 취소
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft > 0) {
-        setState(() {
-          _secondsLeft--;
-        });
-      } else {
-        // 시간이 다 되면 자동으로 다음으로 넘어갑니다. (아무도 선택하지 않은 것으로 처리)
-        _nextVoter();
-      }
-    });
-  }
-
-  void _castVote(String votedFor) {
-    // 투표를 하면 타이머가 멈추고 다음으로 넘어갑니다.
-    _timer?.cancel();
+  /// 투표를 기록하고 다음 투표자로 넘어가는 함수
+  void _recordVote(String votedFor) {
+    if (!mounted) return;
     setState(() {
       gameSession!.votes.update(
         votedFor,
         (value) => value + 1,
         ifAbsent: () => 1,
       );
-      _nextVoter();
+      _currentVoterIndex++;
+      _processNextVoter(); // 다음 투표자 처리
     });
-  }
-
-  void _nextVoter() {
-    if (currentVoterIndex < gameSession!.players.length - 1) {
-      setState(() {
-        currentVoterIndex++;
-      });
-      _startTimer(); // 다음 투표자를 위해 타이머를 다시 시작합니다.
-    } else {
-      Navigator.pushReplacementNamed(
-        context,
-        '/results',
-        arguments: gameSession,
-      );
-    }
   }
 
   @override
@@ -95,60 +90,56 @@ class _VotingScreenState extends State<VotingScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final currentVoter = gameSession!.players[currentVoterIndex];
+    // 현재 투표자가 사람일 경우에만 투표 옵션을 보여줌
+    final isHumanTurn =
+        !_isAIVoting && _currentVoterIndex < gameSession!.players.length;
+    final currentVoter = isHumanTurn
+        ? gameSession!.players[_currentVoterIndex]
+        : '';
 
     return Scaffold(
-      appBar: AppBar(title: Text('$currentVoter님의 투표')),
+      appBar: AppBar(title: const Text('라이어 투표')),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- 타이머 UI 추가 ---
               Text(
-                '남은 시간: $_secondsLeft초',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: _secondsLeft <= 5 ? Colors.red : null,
-                  fontWeight: FontWeight.bold,
+                _statusMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 20),
+              if (_isAIVoting)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: CircularProgressIndicator(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              // --- 타이머 진행 바 추가 ---
-              LinearProgressIndicator(
-                value: _secondsLeft / 15.0,
-                backgroundColor: Colors.grey.shade300,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                '라이어라고 생각하는 사람을 선택하세요.',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView(
-                  children: gameSession!.descriptions.entries.map((entry) {
-                    return Card(
-                      child: ListTile(
-                        title: Text(entry.key),
-                        subtitle: Text(entry.value),
-                      ),
-                    );
-                  }).toList(),
+              // 사람 턴일 때만 투표 버튼들을 보여줌
+              if (isHumanTurn)
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 2.5,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: gameSession!.players.length,
+                    itemBuilder: (context, index) {
+                      final player = gameSession!.players[index];
+                      final isSelf = player == currentVoter;
+                      return GradientButton(
+                        onPressed: isSelf ? null : () => _recordVote(player),
+                        text: player,
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10,
-                alignment: WrapAlignment.center,
-                children: gameSession!.players.map((player) {
-                  final isSelf = player == currentVoter;
-                  return ElevatedButton(
-                    onPressed: isSelf ? null : () => _castVote(player),
-                    child: Text(player),
-                  );
-                }).toList(),
-              ),
             ],
           ),
         ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'game_session.dart';
-import 'gpt_service.dart';
+import 'gpt_service.dart'; // GPT 서비스를 사용하기 위해 임포트
+import 'core/theme/app_theme.dart';
+import 'core/theme/app_text_styles.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -10,134 +12,100 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  final TextEditingController _controller = TextEditingController();
   GameSession? gameSession;
-
-  // 라이어 추리 힌트 변수
+  final TextEditingController _descriptionController = TextEditingController();
   final GptService _gptService = GptService();
-  String? _liarHintText;
+
+  bool _allDescriptionsSubmitted = false;
   bool _isLiarHintLoading = false;
+  bool _isWordHintLoading = false; // '설명 힌트'를 위한 로딩 변수 추가
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (gameSession == null) {
       final args = ModalRoute.of(context)?.settings.arguments;
-
       if (args != null && args is GameSession) {
         setState(() {
           gameSession = args;
         });
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
+          if (mounted) Navigator.of(context).pop();
         });
       }
     }
   }
 
-  // ## 제시어 설명 힌트 함수 추가 ##
-  void _fetchWordHint() async {
-    if (gameSession == null) return;
+  void _submitDescription() {
+    final description = _descriptionController.text.trim();
+    if (description.isEmpty) return;
 
-    // 현재 플레이어 정보 확인
     final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
-    final isLiar = currentPlayer == gameSession!.liar;
-    final word = isLiar ? gameSession!.liarWord : gameSession!.word;
-    final topic = gameSession!.topic;
+    setState(() {
+      gameSession!.descriptions[currentPlayer] = description;
+      _descriptionController.clear();
+      gameSession!.currentPlayerIndex++;
+      if (gameSession!.descriptions.length >= gameSession!.players.length) {
+        _allDescriptionsSubmitted = true;
+      }
+    });
+  }
 
-    // 로딩 팝업 표시
+  // ## 'AI 라이어 힌트' 기능 (설명이 모두 끝난 후) ##
+  Future<void> _showLiarHint() async {
+    setState(() => _isLiarHintLoading = true);
+    final hint = await _gptService.getLiarHint(gameSession!);
+    if (!mounted) return;
+    setState(() => _isLiarHintLoading = false);
+
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => AlertDialog(
+        title: const Text('AI의 라이어 분석'),
+        content: Text(hint),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ## 'AI 설명 힌트' 기능 (설명 입력 단계) ##
+  Future<void> _showWordHint() async {
+    setState(() => _isWordHintLoading = true);
+    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
+    final isLiar = currentPlayer == gameSession!.liar;
+
+    final hint = await _gptService.getWordHint(
+      topic: gameSession!.topic,
+      word: isLiar ? gameSession!.liarWord : gameSession!.word,
+      isLiar: isLiar,
     );
 
-    try {
-      final hint = await _gptService.getWordHint(
-        topic: topic,
-        word: word,
-        isLiar: isLiar,
-      );
+    if (!mounted) return;
+    setState(() => _isWordHintLoading = false);
 
-      // 로딩 팝업 닫기
-      if (mounted) Navigator.of(context).pop();
-
-      // 결과 팝업 표시
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('💡 AI 설명 힌트'),
-            content: Text(hint),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('확인'),
-              ),
-            ],
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('AI 설명 힌트'),
+        content: Text(hint),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('확인'),
           ),
-        );
-      }
-    } catch (e) {
-      // 로딩 팝업 닫기
-      if (mounted) Navigator.of(context).pop();
-      // 에러 메시지 표시
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('힌트 생성에 실패했습니다: $e')));
-      }
-    }
+        ],
+      ),
+    );
   }
 
-  void _submitDescription() {
-    if (gameSession == null) return;
-
-    if (_controller.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('설명을 입력해주세요!')));
-      return;
-    }
-
-    setState(() {
-      final currentPlayer =
-          gameSession!.players[gameSession!.currentPlayerIndex];
-      gameSession!.descriptions[currentPlayer] = _controller.text.trim();
-
-      if (gameSession!.currentPlayerIndex < gameSession!.players.length - 1) {
-        gameSession!.currentPlayerIndex++;
-      }
-      _controller.clear();
-    });
-  }
-
-  void _fetchLiarHint() async {
-    if (gameSession == null) return;
-    setState(() {
-      _isLiarHintLoading = true;
-      _liarHintText = null;
-    });
-
-    try {
-      final hint = await _gptService.getLiarHint(gameSession!);
-      setState(() {
-        _liarHintText = hint;
-      });
-    } finally {
-      setState(() {
-        _isLiarHintLoading = false;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _startVoting() {
+    Navigator.pushReplacementNamed(context, '/voting', arguments: gameSession);
   }
 
   @override
@@ -146,129 +114,136 @@ class _GameScreenState extends State<GameScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final allDescriptionsDone =
-        gameSession!.descriptions.length == gameSession!.players.length;
-    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
-
     return Scaffold(
       appBar: AppBar(title: Text('주제: ${gameSession!.topic}')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: gameSession!.descriptions.length,
-                  itemBuilder: (context, index) {
-                    final player = gameSession!.descriptions.keys.elementAt(
-                      index,
-                    );
-                    final description = gameSession!.descriptions[player];
-                    return Card(
-                      child: ListTile(
-                        title: Text(player),
-                        subtitle: Text(description!),
-                      ),
-                    );
-                  },
+      body: _allDescriptionsSubmitted
+          ? _buildPreVotingUI()
+          : _buildDescriptionInputUI(),
+    );
+  }
+
+  // ## 설명 입력 단계 UI ##
+  Widget _buildDescriptionInputUI() {
+    final currentPlayer = gameSession!.players[gameSession!.currentPlayerIndex];
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '$currentPlayer 님의 차례',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '제시어를 한 문장으로 설명해주세요.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 32),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                hintText: '예) 하늘을 나는 탈 것입니다.',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderSide: BorderSide.none,
                 ),
               ),
-              const Divider(height: 32),
-              if (!allDescriptionsDone)
-                Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '$currentPlayer 님의 설명 차례',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        // ## 설명 힌트 받기 버튼 추가 ##
-                        IconButton(
-                          icon: const Icon(Icons.lightbulb_outline),
-                          onPressed: _fetchWordHint,
-                          tooltip: 'AI에게 설명 힌트 받기',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _controller,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: '제시어 설명 입력',
+              textAlign: TextAlign.center,
+              onSubmitted: (_) => _submitDescription(),
+            ),
+            const SizedBox(height: 20),
+            // 'AI 설명 힌트' 버튼 추가
+            OutlinedButton.icon(
+              icon: const Icon(Icons.lightbulb_outline),
+              label: Text(_isWordHintLoading ? 'AI 생각 중...' : 'AI 설명 힌트 보기'),
+              onPressed: _isWordHintLoading ? null : _showWordHint,
+            ),
+            const Spacer(),
+            GradientButton(onPressed: _submitDescription, text: '설명 제출'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ## 투표 전 단계 UI ##
+  Widget _buildPreVotingUI() {
+    final smallButtonTextStyle = AppTextStyles.button.copyWith(fontSize: 15);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '모든 설명이 끝났습니다!\n토론 후 라이어를 지목해주세요.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '각 플레이어의 설명',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      onSubmitted: (_) => _submitDescription(),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _submitDescription,
-                      child: const Text('설명 제출'),
-                    ),
-                  ],
-                )
-              else
-                Column(
-                  children: [
-                    if (_isLiarHintLoading)
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    if (_liarHintText != null)
-                      Card(
-                        elevation: 2,
-                        color: Colors.blue.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '🕵️ GPT 탐정의 추리',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                      const Divider(height: 24),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: gameSession!.descriptions.length,
+                          itemBuilder: (context, index) {
+                            final player = gameSession!.descriptions.keys
+                                .elementAt(index);
+                            final description =
+                                gameSession!.descriptions[player];
+                            return ListTile(
+                              leading: const Icon(Icons.comment_outlined),
+                              title: Text(
+                                player,
+                                style: Theme.of(context).textTheme.bodyLarge,
                               ),
-                              const SizedBox(height: 8),
-                              Text(_liarHintText!),
-                            ],
-                          ),
+                              subtitle: Text('"$description"'),
+                            );
+                          },
                         ),
                       ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed:
-                                (_isLiarHintLoading || _liarHintText != null)
-                                ? null
-                                : _fetchLiarHint,
-                            child: const Text('GPT 라이어 추리'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/voting',
-                                arguments: gameSession,
-                              );
-                            },
-                            child: const Text('투표 시작하기'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-            ],
-          ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: GradientButton(
+                    onPressed: _isLiarHintLoading ? null : _showLiarHint,
+                    text: _isLiarHintLoading ? '분석 중...' : 'AI 라이어 분석',
+                    textStyle: smallButtonTextStyle,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GradientButton(
+                    onPressed: _startVoting,
+                    text: '투표 시작하기',
+                    textStyle: smallButtonTextStyle,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

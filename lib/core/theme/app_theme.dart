@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // HapticFeedback을 위해 임포트
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
+  // ... (다른 테마 코드는 이전과 동일)
   static final ThemeData lightTheme = ThemeData(
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: AppColors.secondary,
+    fontFamily: GoogleFonts.gaegu().fontFamily,
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
-      secondary: AppColors.accent,
+      secondary: AppColors.accentEmerald,
       surface: AppColors.secondary,
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
-      foregroundColor: AppColors.primary,
       elevation: 0,
       centerTitle: true,
       titleTextStyle: AppTextStyles.headline2.copyWith(
         color: AppColors.primary,
       ),
+      iconTheme: const IconThemeData(color: AppColors.primary),
     ),
     textTheme: TextTheme(
       headlineLarge: AppTextStyles.headline1,
@@ -29,13 +33,10 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary, // 새로운 파란색으로 자동 적용
-        foregroundColor: Colors.white,
-        textStyle: AppTextStyles.button,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        padding: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        elevation: 5,
-        shadowColor: AppColors.primary.withAlpha(51), // 새로운 파란색 그림자로 자동 적용
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -43,15 +44,101 @@ class AppTheme {
         foregroundColor: AppColors.primary,
         side: const BorderSide(color: AppColors.primary, width: 2),
         textStyle: AppTextStyles.button.copyWith(color: AppColors.primary),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
       ),
     ),
     cardTheme: CardThemeData(
-      elevation: 2,
+      elevation: 0,
       color: AppColors.cardBackground,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.glass, width: 1.5),
+      ),
       margin: const EdgeInsets.symmetric(vertical: 8),
     ),
   );
+}
+
+// 그라데이션 버튼 커스텀 위젯
+class GradientButton extends StatefulWidget {
+  final VoidCallback? onPressed;
+  final String text;
+  final TextStyle? textStyle;
+  final Gradient? gradient;
+
+  const GradientButton({
+    super.key,
+    required this.onPressed,
+    required this.text,
+    this.textStyle,
+    this.gradient,
+  });
+
+  @override
+  State<GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<GradientButton> {
+  double _scale = 1.0;
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onPressed != null) {
+      setState(() => _scale = 0.95);
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    if (widget.onPressed != null) {
+      setState(() => _scale = 1.0);
+      widget.onPressed!();
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  void _onTapCancel() {
+    setState(() => _scale = 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultGradient = const LinearGradient(
+      colors: [AppColors.primary, AppColors.accentViolet],
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+    );
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          height: 54,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: widget.onPressed == null
+                ? const LinearGradient(colors: [Colors.grey, Colors.grey])
+                : widget.gradient ?? defaultGradient,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: widget.onPressed == null
+                ? []
+                : [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(77),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+          ),
+          child: Text(
+            widget.text,
+            style: widget.textStyle ?? AppTextStyles.button,
+          ),
+        ),
+      ),
+    );
+  }
 }

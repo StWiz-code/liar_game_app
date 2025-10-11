@@ -91,7 +91,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-  
+
   # Pretendard 폰트를 프로젝트에 추가합니다.
   # 먼저 assets/fonts 폴더를 만들고 그 안에 폰트 파일을 넣어야 합니다.
   fonts:

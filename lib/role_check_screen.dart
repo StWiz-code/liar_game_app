@@ -1,6 +1,10 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'game_session.dart';
+import 'core/theme/app_theme.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/app_text_styles.dart';
 
 class RoleCheckScreen extends StatefulWidget {
   const RoleCheckScreen({super.key});
@@ -13,7 +17,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   bool _isCardFlipped = false;
-
   GameSession? gameSession;
   int currentPlayerIndex = 0;
 
@@ -37,9 +40,7 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
         });
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
+          if (mounted) Navigator.of(context).pop();
         });
       }
     }
@@ -63,6 +64,8 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
         _animationController.reset();
       });
     } else {
+      // ## 이 부분이 유일한 원인입니다. ##
+      // 마지막 플레이어 확인 후 반드시 '/game' 경로로 이동해야 합니다.
       Navigator.pushReplacementNamed(context, '/game', arguments: gameSession);
     }
   }
@@ -84,56 +87,64 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     final isLastPlayer = currentPlayerIndex == gameSession!.players.length - 1;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('역할 확인')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '$currentPlayer 님의 차례',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '카드를 탭하여 역할을 확인하세요',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 32),
-              GestureDetector(
-                onTap: _flipCard,
-                child: AnimatedBuilder(
-                  animation: _animationController,
-                  builder: (context, child) {
-                    final angle = _animationController.value * pi;
-                    final isFrontSide = _animationController.value < 0.5;
-                    final transform = Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(angle);
-                    return Transform(
-                      transform: transform,
-                      alignment: Alignment.center,
-                      child: isFrontSide
-                          ? _buildCardFront()
-                          : Transform(
-                              transform: Matrix4.identity()..rotateY(pi),
-                              alignment: Alignment.center,
-                              child: _buildCardBack(isLiar, gameSession!),
-                            ),
-                    );
-                  },
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.5,
+            colors: [AppColors.primary.withAlpha(26), AppColors.secondary],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '$currentPlayer 님의 차례',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: _isCardFlipped ? _nextPlayer : null,
-                child: Text(isLastPlayer ? '모두 확인! 게임 시작' : '다음 플레이어'),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  '카드를 탭하여 역할을 확인하세요',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 32),
+                GestureDetector(
+                  onTap: _flipCard,
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, child) {
+                      final angle = _animationController.value * pi;
+                      final isFrontSide = _animationController.value < 0.5;
+                      final transform = Matrix4.identity()
+                        ..setEntry(3, 2, 0.001)
+                        ..rotateY(angle);
+                      return Transform(
+                        transform: transform,
+                        alignment: Alignment.center,
+                        child: isFrontSide
+                            ? _buildCardFront()
+                            : Transform(
+                                transform: Matrix4.identity()..rotateY(pi),
+                                alignment: Alignment.center,
+                                child: _buildCardBack(isLiar, gameSession!),
+                              ),
+                      );
+                    },
+                  ),
+                ),
+                const Spacer(),
+                GradientButton(
+                  onPressed: _isCardFlipped ? _nextPlayer : null,
+                  text: isLastPlayer ? '모두 확인! 게임 시작' : '다음 플레이어',
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -141,23 +152,35 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
   }
 
   Widget _buildCardFront() {
-    return Card(
-      child: Container(
-        height: 250,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          // 파란색 계열 그라데이션으로 수정
-          gradient: LinearGradient(
-            colors: [Theme.of(context).primaryColor, Colors.blue.shade300],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20.0),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          height: 280,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                AppColors.accentViolet,
+                AppColors.primary,
+                AppColors.accentEmerald,
+              ],
+              begin: Alignment(-1.5, -1.5),
+              end: Alignment(1.5, 1.5),
+            ),
+            borderRadius: BorderRadius.circular(20.0),
+            border: Border.all(color: Colors.white.withAlpha(51)),
           ),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.question_mark_rounded,
-            color: Colors.white,
-            size: 80,
+          child: Center(
+            child: Text(
+              '탭하여 역할 확인',
+              style: AppTextStyles.button.copyWith(
+                fontSize: 22,
+                shadows: [
+                  const Shadow(blurRadius: 10.0, color: Colors.black26),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -168,7 +191,7 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
     final theme = Theme.of(context);
     return Card(
       child: Container(
-        height: 250,
+        height: 280,
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -190,7 +213,6 @@ class _RoleCheckScreenState extends State<RoleCheckScreen>
             ),
             const Divider(height: 32),
             Text(
-              // ## 버그 수정: 라이어일 경우 session.topic 대신 session.liarWord를 보여줍니다.
               isLiar ? session.liarWord : session.word,
               style: theme.textTheme.headlineLarge?.copyWith(
                 color: theme.primaryColor,

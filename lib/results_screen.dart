@@ -1,7 +1,10 @@
-import 'package:confetti/confetti.dart'; // 이 라인이 추가되었습니다.
+import 'dart:math';
+import 'package:confetti/confetti.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
+import 'core/theme/app_theme.dart';
+import 'core/theme/app_text_styles.dart';
 import 'game_session.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -12,32 +15,43 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  late ConfettiController _confettiController;
-  late GameSession gameSession;
-  late bool liarCaught;
-  late String winnerText;
-  late Color winnerColor;
+  late ConfettiController _winConfettiController;
+  late ConfettiController _loseConfettiController;
+
+  GameSession? gameSession;
+
+  bool? liarCaught;
+  String? winnerText;
+  Color? winnerColor;
   List<String> mostVotedPlayers = [];
 
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(
+    _winConfettiController = ConfettiController(
       duration: const Duration(seconds: 1),
     );
-  }
+    _loseConfettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    gameSession = ModalRoute.of(context)!.settings.arguments as GameSession;
-    _calculateResults();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is GameSession) {
+          gameSession = args;
+          _calculateResults();
+        }
+      }
+    });
   }
 
   void _calculateResults() {
+    if (gameSession == null) return;
+
     int maxVotes = 0;
-    if (gameSession.votes.isNotEmpty) {
-      gameSession.votes.forEach((player, votes) {
+    if (gameSession!.votes.isNotEmpty) {
+      gameSession!.votes.forEach((player, votes) {
         if (votes > maxVotes) {
           maxVotes = votes;
           mostVotedPlayers = [player];
@@ -48,34 +62,34 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
 
     final bool tie = mostVotedPlayers.length > 1;
-    liarCaught =
+    final bool isLiarCaught =
         mostVotedPlayers.length == 1 &&
-        mostVotedPlayers.first == gameSession.liar;
+        mostVotedPlayers.first == gameSession!.liar;
 
-    if (tie) {
-      winnerText = '라이어 승리! (동점)';
-      winnerColor = AppColors.primary;
-    } else if (liarCaught) {
-      winnerText = '시민 승리!';
-      winnerColor = AppColors.accent;
-      // build가 완료된 후 confetti를 실행해야 안전합니다.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _confettiController.play();
-      });
-    } else {
-      winnerText = '라이어 승리!';
-      winnerColor = AppColors.primary;
-    }
+    setState(() {
+      liarCaught = isLiarCaught;
+      if (liarCaught!) {
+        winnerText = '시민 승리!';
+        winnerColor = AppColors.accentEmerald;
+        _winConfettiController.play();
+      } else {
+        winnerText = tie ? '라이어 승리! (동점)' : '라이어 승리!';
+        winnerColor = AppColors.primary;
+        _loseConfettiController.play();
+      }
+    });
   }
 
   @override
   void dispose() {
-    _confettiController.dispose();
+    _winConfettiController.dispose();
+    _loseConfettiController.dispose();
     super.dispose();
   }
 
   void _restartGame() {
-    final newSession = GameSession(players: gameSession.players);
+    if (gameSession == null) return;
+    final newSession = GameSession(players: gameSession!.players);
     Navigator.pushNamedAndRemoveUntil(
       context,
       '/role_check',
@@ -90,10 +104,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (winnerText == null || gameSession == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.secondary,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: liarCaught
+      backgroundColor: liarCaught!
           ? AppColors.winBackground
           : AppColors.loseBackground,
       body: Stack(
@@ -109,7 +130,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        winnerText,
+                        winnerText!,
                         textAlign: TextAlign.center,
                         style: textTheme.headlineLarge?.copyWith(
                           color: winnerColor,
@@ -127,9 +148,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       const SizedBox(height: 16),
                       _buildVoteResultsChart(textTheme),
                       const SizedBox(height: 40),
-                      ElevatedButton(
+                      GradientButton(
                         onPressed: _restartGame,
-                        child: const Text('같은 멤버로 다시하기'),
+                        text: '같은 멤버로 다시하기',
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton(
@@ -142,17 +163,38 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
           ),
+          // 시민 승리 시 폭죽 효과 (변경 없음)
           ConfettiWidget(
-            confettiController: _confettiController,
+            confettiController: _winConfettiController,
             blastDirectionality: BlastDirectionality.explosive,
             shouldLoop: false,
             colors: const [
-              Colors.green,
-              Colors.blue,
-              Colors.pink,
-              Colors.orange,
-              Colors.purple,
+              AppColors.primary,
+              AppColors.accentViolet,
+              AppColors.accentEmerald,
             ],
+          ),
+          // ## 라이어 승리 시 '어둠의 비' 효과 (수정됨) ##
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _loseConfettiController,
+              blastDirectionality: BlastDirectionality.directional,
+              blastDirection: pi / 2, // 아래 방향
+              emissionFrequency: 0.01, // 더 촘촘하게
+              numberOfParticles: 25, // 입자 수 증가
+              maxBlastForce: 20, // 넓게 퍼지도록
+              minBlastForce: 5, // 약하게도 섞이도록
+              gravity: 0.2, // 천천히 떨어지도록
+              shouldLoop: false,
+              colors: const [
+                // 색상 변경
+                AppColors.primary,
+                AppColors.accentViolet,
+                Color(0xFF8B0000), // 어두운 핏빛 (Crimson)
+                Colors.black87,
+              ],
+            ),
           ),
         ],
       ),
@@ -170,7 +212,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Text('라이어', style: textTheme.bodyLarge),
                 Text(
-                  gameSession.liar,
+                  gameSession!.liar,
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -183,7 +225,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Text('시민 제시어', style: textTheme.bodyLarge),
                 Text(
-                  gameSession.word,
+                  gameSession!.word,
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -197,21 +239,25 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Widget _buildVoteResultsChart(TextTheme textTheme) {
-    if (gameSession.votes.isEmpty) {
-      return const Center(child: Text('투표가 진행되지 않았습니다.'));
+    if (gameSession!.votes.isEmpty) {
+      return Center(child: Text('투표가 진행되지 않았습니다.', style: textTheme.bodyLarge));
     }
 
     final barGroups = <BarChartGroupData>[];
     int i = 0;
-    for (var player in gameSession.players) {
-      final voteCount = gameSession.votes[player] ?? 0;
+    for (var player in gameSession!.players) {
+      final voteCount = gameSession!.votes[player] ?? 0;
       barGroups.add(
         BarChartGroupData(
           x: i++,
           barRods: [
             BarChartRodData(
               toY: voteCount.toDouble(),
-              color: Theme.of(context).primaryColor,
+              gradient: const LinearGradient(
+                colors: [AppColors.accentViolet, AppColors.primary],
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+              ),
               width: 22,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -230,11 +276,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                getTitlesWidget: (value, meta) => Text(
-                  gameSession.players[value.toInt()],
-                  style: textTheme.bodySmall,
-                ),
-                reservedSize: 30,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  final text = Text(
+                    gameSession!.players[value.toInt()],
+                    style: textTheme.bodySmall,
+                  );
+                  return SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    angle: -0.785,
+                    child: text,
+                  );
+                },
               ),
             ),
             leftTitles: const AxisTitles(
@@ -254,10 +307,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
                   '${rod.toY.toInt()}표',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  AppTextStyles.button.copyWith(fontSize: 14),
                 );
               },
             ),

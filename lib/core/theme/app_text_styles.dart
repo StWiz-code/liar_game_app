@@ -1,36 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart'; // GoogleFonts를 사용하기 위해 임포트
 import 'app_colors.dart';
 
-// 앱에서 사용할 텍스트 스타일을 미리 정의합니다.
 class AppTextStyles {
-  // 'GoogleFonts.pretendard' 대신 'TextStyle(fontFamily: 'Pretendard')'로 수정합니다.
-  static TextStyle get headline1 => const TextStyle(
-    fontFamily: 'Pretendard',
+  // 모든 TextStyle을 GoogleFonts.gaegu()로 변경합니다.
+  static TextStyle get headline1 => GoogleFonts.gaegu(
+    fontSize: 30, // 손글씨 폰트는 크기를 살짝 키우는 것이 좋습니다.
+    fontWeight: FontWeight.bold,
+    color: AppColors.textPrimary,
+  );
+
+  static TextStyle get headline2 => GoogleFonts.gaegu(
     fontSize: 26,
     fontWeight: FontWeight.bold,
     color: AppColors.textPrimary,
   );
-  static TextStyle get headline2 => const TextStyle(
-    fontFamily: 'Pretendard',
-    fontSize: 22,
-    fontWeight: FontWeight.bold,
-    color: AppColors.textPrimary,
-  );
-  static TextStyle get body1 => const TextStyle(
-    fontFamily: 'Pretendard',
-    fontSize: 16,
+
+  static TextStyle get body1 => GoogleFonts.gaegu(
+    fontSize: 18,
     color: AppColors.textPrimary,
     height: 1.5,
   );
-  static TextStyle get button => const TextStyle(
-    fontFamily: 'Pretendard',
-    fontSize: 16,
+
+  static TextStyle get button => GoogleFonts.gaegu(
+    fontSize: 18,
     fontWeight: FontWeight.bold,
     color: Colors.white,
   );
-  static TextStyle get caption => const TextStyle(
-    fontFamily: 'Pretendard',
-    fontSize: 14,
-    color: AppColors.textSecondary,
-  );
+
+  static TextStyle get caption =>
+      GoogleFonts.gaegu(fontSize: 15, color: AppColors.textSecondary);
 }

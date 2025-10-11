@@ -1,7 +1,7 @@
-import 'package:confetti/confetti.dart';
+import 'package:confetti/confetti.dart'; // 이 라인이 추가되었습니다.
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'core/theme/app_colors.dart'; // 디자인 시스템 색상 임포트
+import 'core/theme/app_colors.dart';
 import 'game_session.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -30,13 +30,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ModalRoute는 initState 이후에 호출해야 안전합니다.
     gameSession = ModalRoute.of(context)!.settings.arguments as GameSession;
     _calculateResults();
   }
 
   void _calculateResults() {
-    // 1. 투표 집계
     int maxVotes = 0;
     if (gameSession.votes.isNotEmpty) {
       gameSession.votes.forEach((player, votes) {
@@ -49,7 +47,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
       });
     }
 
-    // 2. 승리/패배 조건 판정
     final bool tie = mostVotedPlayers.length > 1;
     liarCaught =
         mostVotedPlayers.length == 1 &&
@@ -57,14 +54,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     if (tie) {
       winnerText = '라이어 승리! (동점)';
-      winnerColor = AppColors.primary; // 패배 색상
+      winnerColor = AppColors.primary;
     } else if (liarCaught) {
       winnerText = '시민 승리!';
-      winnerColor = AppColors.accent; // 승리 색상
-      _confettiController.play(); // 시민 승리 시 콘페티 효과 재생
+      winnerColor = AppColors.accent;
+      // build가 완료된 후 confetti를 실행해야 안전합니다.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _confettiController.play();
+      });
     } else {
       winnerText = '라이어 승리!';
-      winnerColor = AppColors.primary; // 패배 색상
+      winnerColor = AppColors.primary;
     }
   }
 
@@ -93,7 +93,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      // 승/패에 따라 배경색 변경
       backgroundColor: liarCaught
           ? AppColors.winBackground
           : AppColors.loseBackground,
@@ -102,46 +101,47 @@ class _ResultsScreenState extends State<ResultsScreen> {
         children: [
           SafeArea(
             child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      winnerText,
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineLarge?.copyWith(
-                        color: winnerColor,
-                        fontSize: 36,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        winnerText,
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineLarge?.copyWith(
+                          color: winnerColor,
+                          fontSize: 36,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildResultInfoCard(textTheme),
-                    const SizedBox(height: 32),
-                    Text(
-                      '투표 결과',
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildVoteResultsChart(textTheme),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: _restartGame,
-                      child: const Text('같은 멤버로 다시하기'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _goToHome,
-                      child: const Text('처음으로'),
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      _buildResultInfoCard(textTheme),
+                      const SizedBox(height: 32),
+                      Text(
+                        '투표 결과',
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildVoteResultsChart(textTheme),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        onPressed: _restartGame,
+                        child: const Text('같은 멤버로 다시하기'),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: _goToHome,
+                        child: const Text('처음으로'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          // 콘페티 효과 위젯
           ConfettiWidget(
             confettiController: _confettiController,
             blastDirectionality: BlastDirectionality.explosive,
@@ -159,7 +159,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     );
   }
 
-  // 라이어 및 제시어 정보 카드 위젯
   Widget _buildResultInfoCard(TextTheme textTheme) {
     return Card(
       child: Padding(
@@ -197,7 +196,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     );
   }
 
-  // 투표 결과 막대그래프 위젯
   Widget _buildVoteResultsChart(TextTheme textTheme) {
     if (gameSession.votes.isEmpty) {
       return const Center(child: Text('투표가 진행되지 않았습니다.'));
@@ -205,7 +203,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     final barGroups = <BarChartGroupData>[];
     int i = 0;
-    // 모든 플레이어를 기준으로 차트 생성 (0표 받은 사람도 표시)
     for (var player in gameSession.players) {
       final voteCount = gameSession.votes[player] ?? 0;
       barGroups.add(

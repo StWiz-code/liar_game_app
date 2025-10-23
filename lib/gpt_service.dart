@@ -7,30 +7,6 @@ import 'secrets.dart';
 class GptService {
   final String _apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-  /// 모든 설명이 끝난 후, 라이어가 누구일지 분석하는 힌트
-  Future<String> getLiarHint(GameSession gameSession) async {
-    final descriptionsText = gameSession.descriptions.entries
-        .map((entry) => '- ${entry.key}: "${entry.value}"')
-        .join('\n');
-
-    final prompt =
-        '''
-      당신은 라이어 게임 분석가입니다. 아래 정보를 보고 라이어일 확률이 가장 높은 사람 한 명과 그 핵심 이유를 간결하게 분석해주세요.
-
-      ### 게임 정보
-      - 주제: ${gameSession.topic}
-      - 참여자 및 설명:
-      $descriptionsText
-
-      ### 임무
-      1. 가장 라이어 같은 사람 한 명을 지목하세요.
-      2. 그 이유를 한두 문장으로 요약해서 설명해주세요.
-      3. 답변은 매우 간결하게, 핵심만 추려서 한국어로만 제공해주세요.
-      4. 절대 제시어를 직접 언급하지 마세요.
-    ''';
-    return _callGptApi(prompt, maxTokens: 150);
-  }
-
   /// 플레이어가 자기 단어를 어떻게 설명할지 팁을 주는 힌트
   Future<String> getWordHint({
     required String topic,
@@ -66,7 +42,7 @@ class GptService {
     final role = isLiar ? "라이어" : "시민";
     final previousDescriptionsText = previousDescriptions.isEmpty
         ? "아직 아무도 설명하지 않았습니다."
-        : previousDescriptions.join('\n');
+        : previousDescriptions.map((d) => '- "$d"').join('\n');
 
     final prompt =
         '''
@@ -82,6 +58,10 @@ class GptService {
       3.  **다른 사람의 설명과 절대 겹치지 않게 설명하세요.**
       4.  매우 간접적이고, 애매모호하고, 창의적으로 설명해야 합니다.
 
+      ### 역할별 전략 (매우 중요) ###
+      - **라이어일 경우:** 당신의 단어 '$word'에 대한 설명이면서, 동시에 주제 '$topic'과도 어떻게든 연관성이 있어 보이도록 교묘하게 설명하여 시민인 척 하세요.
+      - **시민일 경우:** 다른 사람도 쉽게 할 수 있는 가장 뻔한 설명은 피하고, 약간의 개성을 담아 설명하여 라이어가 아님을 어필하세요.
+
       ### 설명 방식 예시 ###
       - 단어가 '축구'일 경우:
         - 나쁜 설명 (너무 직접적): "발로 공을 차는 스포츠입니다."
@@ -91,14 +71,13 @@ class GptService {
         - 좋은 설명 (간접적): "이게 없으면 불안해하는 사람들이 많습니다."
 
       ### 임무 ###
-      위의 '절대 규칙'과 '설명 방식 예시'를 완벽히 숙지하여, 당신의 역할에 맞는 설명을 딱 한 문장으로 만드세요.
+      위의 '절대 규칙', '역할별 전략', '설명 방식 예시'를 완벽히 숙지하여, 당신의 역할에 맞는 설명을 딱 한 문장으로 만드세요.
       답변은 오직 당신의 '설명' 한 문장만, 다른 어떤 부연 설명이나 따옴표 없이 한국어로 말해주세요.
     ''';
-    // 창의성을 위해 temperature를 살짝 올리고, 길이를 제한하기 위해 maxTokens를 낮춤
     return _callGptApi(prompt, maxTokens: 40, temperature: 0.9);
   }
 
-  /// AI 플레이어가 다른 플레이어들의 설명을 듣고 라이어에게 투표
+  /// AI 플레이어가 다른 플레이어들의 설명을 듣고 라이어에게 투표 (프롬프트 강화 버전)
   Future<String> castAIVote(GameSession gameSession, String myName) async {
     final descriptionsText = gameSession.descriptions.entries
         .map((entry) => '- ${entry.key}: "${entry.value}"')
@@ -108,27 +87,30 @@ class GptService {
 
     final prompt =
         '''
-      당신은 '$myName'이라는 이름의 라이어 게임 참가자입니다. 모든 참가자의 설명이 끝났습니다.
+      당신은 '$myName'이라는 이름의 매우 논리적인 라이어 게임 분석가입니다. 모든 참가자의 설명이 끝났습니다. 라이어를 찾아내야 합니다.
       - 주제: ${gameSession.topic}
       - 모든 참가자의 설명:
       $descriptionsText
       - 투표 가능 대상: ${voteTargets.join(', ')}
 
-      임무:
-      1. 위의 설명들을 보고 라이어일 확률이 가장 높은 사람을 한 명 지목하세요.
-      2. 답변은 오직 당신이 투표할 사람의 '이름'만 정확하게 말해주세요. 다른 어떤 설명도 추가하지 마세요.
+      ### 분석 가이드라인 ###
+      1. 주제 '${gameSession.topic}'과 가장 동떨어지거나 어색한 설명을 한 사람을 찾으세요.
+      2. 너무 광범위하거나 애매해서 정체를 숨기려는 의도가 보이는 사람을 찾으세요.
+      3. 다른 사람의 설명과 미묘하게 맥락이 다른 설명을 한 사람을 찾으세요.
+
+      ### 임무 ###
+      위의 '분석 가이드라인'에 따라 설명들을 면밀히 검토하고, 라이어일 확률이 가장 높은 사람 한 명을 지목하세요.
+      답변은 오직 당신이 투표할 사람의 '이름'만 정확하게 말해주세요. 다른 어떤 설명도 추가하지 마세요.
     ''';
 
     try {
       final votedPlayer = await _callGptApi(prompt, maxTokens: 10);
-      if (voteTargets.contains(votedPlayer)) {
-        return votedPlayer;
+      if (voteTargets.contains(votedPlayer.trim())) {
+        return votedPlayer.trim();
       } else {
-        // AI가 유효하지 않은 이름을 반환하면, 무작위로 한 명 선택 (Fallback)
         return voteTargets[Random().nextInt(voteTargets.length)];
       }
     } catch (e) {
-      // API 오류 발생 시에도 무작위로 한 명 선택 (Fallback)
       return voteTargets[Random().nextInt(voteTargets.length)];
     }
   }

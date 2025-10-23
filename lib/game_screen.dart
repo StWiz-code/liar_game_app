@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'game_session.dart';
 import 'gpt_service.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/app_text_styles.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -17,7 +16,6 @@ class _GameScreenState extends State<GameScreen> {
   final GptService _gptService = GptService();
 
   bool _allDescriptionsSubmitted = false;
-  bool _isLiarHintLoading = false;
   bool _isWordHintLoading = false;
   bool _isAITurnProcessing = false;
 
@@ -49,11 +47,7 @@ class _GameScreenState extends State<GameScreen> {
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
 
-      // 이전에 AI가 했던 설명들만 필터링해서 리스트 생성
-      final previousAIDescriptions = gameSession!.descriptions.entries
-          .where((entry) => entry.key.startsWith('AI'))
-          .map((entry) => entry.value)
-          .toList();
+      final previousAllDescriptions = gameSession!.descriptions.values.toList();
 
       final isLiar = currentPlayer == gameSession!.liar;
       final aiDescription = await _gptService.generateAIDescription(
@@ -61,7 +55,7 @@ class _GameScreenState extends State<GameScreen> {
         topic: gameSession!.topic,
         word: isLiar ? gameSession!.liarWord : gameSession!.word,
         isLiar: isLiar,
-        previousDescriptions: previousAIDescriptions, // 필터링된 리스트를 전달
+        previousDescriptions: previousAllDescriptions,
       );
 
       if (mounted) {
@@ -87,27 +81,6 @@ class _GameScreenState extends State<GameScreen> {
         _checkAndProcessAITurn();
       }
     });
-  }
-
-  // --- 힌트 및 투표 시작 함수 (이전과 동일) ---
-  Future<void> _showLiarHint() async {
-    setState(() => _isLiarHintLoading = true);
-    final hint = await _gptService.getLiarHint(gameSession!);
-    if (!mounted) return;
-    setState(() => _isLiarHintLoading = false);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('AI의 라이어 분석'),
-        content: Text(hint),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('닫기'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _showWordHint() async {
@@ -227,8 +200,8 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // ## 수정된 부분 ##
   Widget _buildPreVotingUI() {
-    final smallButtonTextStyle = AppTextStyles.button.copyWith(fontSize: 15);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -278,25 +251,8 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: GradientButton(
-                    onPressed: _isLiarHintLoading ? null : _showLiarHint,
-                    text: _isLiarHintLoading ? '분석 중...' : 'AI 라이어 분석',
-                    textStyle: smallButtonTextStyle,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: GradientButton(
-                    onPressed: _startVoting,
-                    text: '투표 시작하기',
-                    textStyle: smallButtonTextStyle,
-                  ),
-                ),
-              ],
-            ),
+            // 'AI 라이어 분석' 버튼이 제거되고 '투표 시작하기' 버튼만 남음
+            GradientButton(onPressed: _startVoting, text: '투표 시작하기'),
           ],
         ),
       ),

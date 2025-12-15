@@ -5,7 +5,6 @@ import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
-  // ... (다른 테마 코드는 이전과 동일)
   static final ThemeData lightTheme = ThemeData(
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: AppColors.secondary,
@@ -53,7 +52,8 @@ class AppTheme {
       color: AppColors.cardBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.glass, width: 1.5),
+        // [수정] const 추가 (성능 최적화)
+        side: const BorderSide(color: AppColors.glass, width: 1.5),
       ),
       margin: const EdgeInsets.symmetric(vertical: 8),
     ),
@@ -102,7 +102,8 @@ class _GradientButtonState extends State<GradientButton> {
 
   @override
   Widget build(BuildContext context) {
-    final defaultGradient = const LinearGradient(
+    // [수정] final -> const 변경 (변수 자체가 상수임을 명시)
+    const defaultGradient = LinearGradient(
       colors: [AppColors.primary, AppColors.accentViolet],
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,

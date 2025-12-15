@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Provider 패키지 임포트 필요
 import 'core/theme/app_theme.dart';
-import 'core/theme/app_colors.dart'; // 색상 사용을 위해 임포트
+import 'core/theme/app_colors.dart';
 import 'core/router.dart';
+import 'services/nearby_service.dart'; // NearbyService 임포트
 
 void main() {
   runApp(const LiarGameApp());
@@ -12,11 +14,18 @@ class LiarGameApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '라이어 게임',
-      theme: AppTheme.lightTheme,
-      initialRoute: '/',
-      onGenerateRoute: AppRouter.generateRoute,
+    // MultiProvider로 감싸서 하위 위젯 어디서든 NearbyService에 접근 가능하게 함
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NearbyService()),
+      ],
+      child: MaterialApp(
+        title: '라이어 게임',
+        theme: AppTheme.lightTheme,
+        initialRoute: '/',
+        onGenerateRoute: AppRouter.generateRoute,
+        debugShowCheckedModeBanner: false, // 디버그 배너 제거
+      ),
     );
   }
 }
